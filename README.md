@@ -6,6 +6,9 @@ the backend's `/openapi.json` — no code duplication between backend and JS.
 
 Includes a todo app as a reference implementation.
 
+<img width="1029" height="735" alt="image" src="https://github.com/user-attachments/assets/448ab523-8e11-4545-b75f-b127f7de8be5" />
+
+
 ## Architecture
 
 ```
