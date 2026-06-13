@@ -12,6 +12,7 @@ help:
 	@echo "  chat-with-apps"
 	@echo ""
 	@echo "  make install          Install Python dependencies"
+	@echo "  make seed             Seed all apps with sample data"
 	@echo "  make run              Start all 4 demo apps (Ctrl+C stops all)"
 	@echo "  make stop             Stop all running apps"
 	@echo ""
@@ -26,6 +27,9 @@ help:
 
 install:
 	pip install --system -r requirements.txt
+
+seed:
+	python3 seed.py
 
 # ── Individual apps ───────────────────────────────────────────────────────────
 
