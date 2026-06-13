@@ -106,6 +106,63 @@ can embed with two lines:
 <script type="module" src="/shared/chat-with-app.js"></script>
 ```
 
+Here is the full HTML of a minimal page using the component. The host page
+owns the data display; the component owns the chat. They stay in sync via
+the `tool-executed` event.
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>My App · Agent</title>
+  <style>
+    body   { display: flex; height: 100vh; margin: 0; font-family: sans-serif; }
+    main   { flex: 1; padding: 24px; overflow-y: auto; }
+    ul     { list-style: none; padding: 0; }
+    li     { padding: 8px 0; border-bottom: 1px solid #eee; }
+  </style>
+</head>
+<body>
+
+  <!-- ① Your existing app UI -->
+  <main>
+    <h1>My Todos</h1>
+    <ul id="list"></ul>
+  </main>
+
+  <!-- ② Drop in the component -->
+  <chat-with-app
+    id="agent"
+    spec-url="/openapi.json"
+    system-prompt="You are a helpful todo assistant. Always call list_todos
+                   first when asked about tasks. Be concise."
+  ></chat-with-app>
+
+  <!-- ③ Load the component script -->
+  <script type="module" src="/shared/chat-with-app.js"></script>
+
+  <!-- ④ Your page logic — refresh on every agent tool call -->
+  <script type="module">
+    async function load() {
+      const todos = await fetch('/todos').then(r => r.json());
+      document.getElementById('list').innerHTML =
+        todos.map(t => `<li>${t.done ? '✓' : '○'} ${t.text}</li>`).join('');
+    }
+
+    document.getElementById('agent').addEventListener('tool-executed', load);
+
+    load();
+  </script>
+
+</body>
+</html>
+```
+
+The component requires no configuration beyond `spec-url`. It reads the
+OpenAPI spec at runtime, derives all tools automatically, and dispatches
+`tool-executed` after each agent action so the host page can re-render.
+
 ### Attributes
 
 | Attribute | Default | Description |
