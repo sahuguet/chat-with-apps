@@ -11,6 +11,7 @@ help:
 	@echo ""
 	@echo "  chat-with-apps"
 	@echo ""
+	@echo "  make install          Install Python dependencies"
 	@echo "  make run              Start all 4 demo apps (Ctrl+C stops all)"
 	@echo "  make stop             Stop all running apps"
 	@echo ""
@@ -20,6 +21,11 @@ help:
 	@echo "  make personal-crm     Personal CRM           http://localhost:$(PORT_CRM)"
 	@echo "  make pantry-manager   Pantry manager         http://localhost:$(PORT_PANTRY)"
 	@echo ""
+
+# ── Install ───────────────────────────────────────────────────────────────────
+
+install:
+	pip install --system -r requirements.txt
 
 # ── Individual apps ───────────────────────────────────────────────────────────
 
