@@ -22,6 +22,26 @@ def seed(db_path: Path, table: str, columns: list[str], rows: list[tuple], creat
     conn.close()
 
 
+# ── Todo ─────────────────────────────────────────────────────────────────────
+
+seed(
+    db_path=ROOT / "apps/todo/todos.db",
+    table="todo",
+    create_sql="""CREATE TABLE IF NOT EXISTS todo (
+        id   INTEGER PRIMARY KEY AUTOINCREMENT,
+        text TEXT    NOT NULL,
+        done INTEGER NOT NULL DEFAULT 0
+    )""",
+    columns=["text", "done"],
+    rows=[
+        ("Buy groceries for the week",   0),
+        ("Review pull request from Yuki", 0),
+        ("Schedule dentist appointment",  0),
+        ("Send invoice to client",        1),
+        ("Read chapter 3 of SICP",        0),
+    ],
+)
+
 # ── Expense Tracker ───────────────────────────────────────────────────────────
 
 seed(

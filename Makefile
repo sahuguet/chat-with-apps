@@ -34,7 +34,7 @@ seed:
 # ── Individual apps ───────────────────────────────────────────────────────────
 
 todo:
-	uvicorn main:app --reload --port $(PORT_TODO)
+	cd apps/todo && uvicorn main:app --reload --port $(PORT_TODO)
 
 expense-tracker:
 	cd apps/expense-tracker && uvicorn main:app --reload --port $(PORT_EXPENSE)
@@ -55,12 +55,14 @@ pantry-manager:
 run:
 	@echo "Starting all apps — Ctrl+C to stop all"
 	@echo ""
+	@echo "  Todo             →  http://localhost:$(PORT_TODO)"
 	@echo "  Expense Tracker  →  http://localhost:$(PORT_EXPENSE)"
 	@echo "  Recipe Box       →  http://localhost:$(PORT_RECIPE)"
 	@echo "  Personal CRM     →  http://localhost:$(PORT_CRM)"
 	@echo "  Pantry Manager   →  http://localhost:$(PORT_PANTRY)"
 	@echo ""
 	@trap 'kill 0' INT; \
+	(cd apps/todo            && uvicorn main:app --port $(PORT_TODO)    2>&1 | sed 's/^/[todo   ] /') & \
 	(cd apps/expense-tracker && uvicorn main:app --port $(PORT_EXPENSE) 2>&1 | sed 's/^/[expense] /') & \
 	(cd apps/recipe-box      && uvicorn main:app --port $(PORT_RECIPE)  2>&1 | sed 's/^/[recipe ] /') & \
 	(cd apps/personal-crm    && uvicorn main:app --port $(PORT_CRM)     2>&1 | sed 's/^/[crm    ] /') & \
