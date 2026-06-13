@@ -4,7 +4,7 @@ An LLM-powered chat interface that works with any OpenAPI-described backend.
 The frontend derives its API client and Claude tool definitions at runtime from
 the backend's `/openapi.json` — no code duplication between backend and JS.
 
-Includes a todo app as a reference implementation.
+Includes 5 demo apps to show the pattern works across different domains.
 
 <img width="1029" height="735" alt="image" src="https://github.com/user-attachments/assets/448ab523-8e11-4545-b75f-b127f7de8be5" />
 
@@ -22,17 +22,35 @@ FastAPI (main.py)
                     └── TOOLS       ← Claude tool definitions via deriveTools()
 ```
 
+## Demo apps
+
+Each app lives in `apps/<name>/` and follows the same pattern: FastAPI backend,
+auto-generated `/openapi.json`, and `<chat-with-app>` embedded in the page.
+
+| App | Port | Agent strengths |
+|---|---|---|
+| `todo` | 8000 | Task management, bulk operations |
+| `expense-tracker` | 8001 | Natural language queries over financial data |
+| `recipe-box` | 8002 | Cross-referencing by ingredient, meal planning |
+| `personal-crm` | 8003 | Temporal queries, overdue follow-up detection |
+| `pantry-manager` | 8004 | Stock alerts, cook-with-what-you-have suggestions |
+
 ## Setup
 
 ```bash
-pip install fastapi uvicorn sqlmodel httpx
-
-export ANTHROPIC_API_KEY=sk-ant-...
-
-uvicorn main:app --reload
+make install      # install Python dependencies
+make seed         # populate each app's database with sample data
+make run          # start all 5 apps (Ctrl+C stops all)
 ```
 
-Open http://localhost:8000, enter your Anthropic API key, and start chatting.
+Or run a single app:
+
+```bash
+make todo             # http://localhost:8000
+make expense-tracker  # http://localhost:8001
+```
+
+Enter your Anthropic API key in the chat panel and start chatting.
 
 ## The `<chat-with-app>` web component
 
@@ -94,7 +112,7 @@ is the OpenAPI/JSON Schema object with no conversion needed.
 
 ## Adding a new endpoint
 
-1. Add a route in `main.py` with an explicit `operation_id` and `summary`.
+1. Add a route in your app's `main.py` with an explicit `operation_id` and `summary`.
 2. Restart the server.
 3. Reload the page — the new tool appears in the agent automatically.
 
