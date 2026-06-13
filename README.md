@@ -52,6 +52,50 @@ make expense-tracker  # http://localhost:8001
 
 Enter your Anthropic API key in the chat panel and start chatting.
 
+## Example interactions
+
+The agent can handle requests that would require multiple clicks or complex
+filters in a traditional UI, but map naturally to a single sentence.
+
+**Todo app** — bulk operations across items:
+```
+You:   "Mark everything related to invoices as done and add a reminder to
+        follow up with the client next Monday."
+Agent: ⚙ list_todos → [...]
+       ⚙ update_todo → {id: 4, done: true}
+       ⚙ add_todo → {id: 6, text: "Follow up with client — Monday"}
+       Done. Marked "Send invoice to client" as complete and added a follow-up task.
+```
+
+**Expense tracker** — queries that require aggregation:
+```
+You:   "How much have I spent on food this month? Am I over $100?"
+Agent: ⚙ get_expense_summary → {by_category: {food: 110.18, ...}, total: 230.87}
+       You've spent $110.18 on food this month — yes, just over your $100 mark.
+       The two food entries are Whole Foods ($87.43) and Shake Shack ($22.75).
+```
+
+**Personal CRM** — temporal reasoning across records:
+```
+You:   "Who haven't I been in touch with for more than 30 days?"
+Agent: ⚙ list_overdue_contacts → [{name: "Marcus Williams", ...}, {name: "James O'Brien", ...}]
+       Two contacts need follow-up:
+       • Marcus Williams — last contacted 42 days ago (email about the repo)
+       • James O'Brien — last contacted 63 days ago, no reply to last two emails.
+       Want me to draft a message to either of them?
+```
+
+**Pantry manager** — cross-referencing stock with cooking intent:
+```
+You:   "What can I make for dinner with what I have?"
+Agent: ⚙ list_items → [pasta 1.5kg, chicken 1.2kg, eggs 3, ...]
+       With your current stock you could make:
+       • Pasta with chicken (you have both in good supply)
+       • Scrambled eggs (though you're low — only 3 left, minimum is 6)
+       Note: olive oil is very low (0.3L), so anything requiring a lot of it
+       might be tricky. Want me to add olive oil to a shopping list?
+```
+
 ## The `<chat-with-app>` web component
 
 The chat interface is packaged as a self-contained custom element that any page
@@ -59,7 +103,7 @@ can embed with two lines:
 
 ```html
 <chat-with-app spec-url="/openapi.json"></chat-with-app>
-<script type="module" src="/chat-with-app.js"></script>
+<script type="module" src="/shared/chat-with-app.js"></script>
 ```
 
 ### Attributes
