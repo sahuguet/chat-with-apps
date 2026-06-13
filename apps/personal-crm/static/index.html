@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Personal CRM · Agent</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0f0f11; --surface: #1a1a1f; --border: #2a2a32;
+    --accent: #7c6af7; --accent-dim: #3d3570;
+    --text: #e8e8f0; --muted: #6b6b7e;
+    --red: #f76a6a; --green: #6af7a8; --yellow: #f7d06a;
+    --font: 'Inter', system-ui, sans-serif;
+    --mono: 'JetBrains Mono', 'Fira Code', monospace;
+  }
+  body { background: var(--bg); color: var(--text); font-family: var(--font);
+         height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+  header { display: flex; align-items: center; justify-content: space-between;
+           padding: 14px 24px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+  header h1 { font-size: 15px; font-weight: 600; letter-spacing: .04em; color: var(--accent); }
+  header span { font-size: 12px; color: var(--muted); }
+
+  .layout { display: flex; flex: 1; overflow: hidden; }
+
+  .data-panel { flex: 1; display: flex; flex-direction: column; border-right: 1px solid var(--border); overflow: hidden; }
+  .panel-header { padding: 14px 20px; border-bottom: 1px solid var(--border);
+                  display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+  .panel-header h2 { font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+  .panel-body { flex: 1; overflow-y: auto; padding: 16px 20px; display: flex; flex-direction: column; gap: 8px; }
+
+  .contact-row { display: flex; align-items: center; gap: 12px;
+                 background: var(--surface); border: 1px solid var(--border);
+                 border-radius: 8px; padding: 12px 14px; }
+  .contact-avatar { width: 36px; height: 36px; border-radius: 50%;
+                    background: var(--accent-dim); color: var(--accent);
+                    display: flex; align-items: center; justify-content: center;
+                    font-size: 14px; font-weight: 600; flex-shrink: 0; }
+  .contact-name { font-size: 14px; font-weight: 600; }
+  .contact-meta { font-size: 11px; color: var(--muted); margin-top: 3px; }
+  .contact-row .status { margin-left: auto; flex-shrink: 0; font-size: 11px;
+                         padding: 3px 8px; border-radius: 4px; }
+  .status.ok   { background: #1a3d2a; color: var(--green); }
+  .status.warn { background: #3d3218; color: var(--yellow); }
+  .status.late { background: #3d1a1a; color: var(--red); }
+
+  .empty { display: flex; align-items: center; justify-content: center; flex: 1;
+           color: var(--muted); font-size: 13px; }
+
+  chat-with-app { flex-shrink: 0; border-left: 1px solid var(--border); }
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>&#x1F4CB; Personal CRM</h1>
+  <span>Stay in touch, log interactions, never lose track</span>
+</header>
+
+<div class="layout">
+  <div class="data-panel">
+    <div class="panel-header">
+      <h2>Contacts</h2>
+      <span id="contactCount" style="font-size:12px;color:var(--muted)"></span>
+    </div>
+    <div id="contactList" class="panel-body"></div>
+  </div>
+
+  <chat-with-app
+    id="chatAgent"
+    spec-url="/openapi.json"
+    system-prompt="You are a helpful personal CRM assistant. Help users manage their network: add contacts, log interactions (calls, emails, meetings), and surface who they haven't reached out to recently. Use list_overdue_contacts to find people who need follow-up. After logging an interaction, update the contact's last_contacted date. Be concise and proactive."
+  ></chat-with-app>
+</div>
+
+<script type="module" src="/shared/chat-with-app.js"></script>
+<script type="module">
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function daysSince(dateStr) {
+  if (!dateStr) return Infinity;
+  const diff = Date.now() - new Date(dateStr).getTime();
+  return Math.floor(diff / 86400000);
+}
+
+function initials(name) {
+  return name.split(' ').map(w => w[0] ?? '').join('').slice(0, 2).toUpperCase();
+}
+
+function contactStatus(lastContacted) {
+  const days = daysSince(lastContacted);
+  if (days === Infinity) return { cls: 'late',  label: 'Never contacted' };
+  if (days > 30)         return { cls: 'late',  label: `${days}d ago` };
+  if (days > 14)         return { cls: 'warn',  label: `${days}d ago` };
+  return                        { cls: 'ok',    label: `${days}d ago` };
+}
+
+async function loadContacts() {
+  const contacts = await fetch('/contacts').then(r => r.json());
+  const list  = document.getElementById('contactList');
+  const count = document.getElementById('contactCount');
+
+  count.textContent = `${contacts.length} contact${contacts.length !== 1 ? 's' : ''}`;
+
+  if (contacts.length === 0) {
+    list.innerHTML = `<div class="empty">No contacts yet &mdash; ask the agent to add one.</div>`;
+    return;
+  }
+
+  const sorted = [...contacts].sort((a, b) => daysSince(a.last_contacted) - daysSince(b.last_contacted)).reverse();
+  list.innerHTML = sorted.map(c => {
+    const { cls, label } = contactStatus(c.last_contacted);
+    return `
+    <div class="contact-row">
+      <div class="contact-avatar">${escHtml(initials(c.name))}</div>
+      <div style="flex:1">
+        <div class="contact-name">${escHtml(c.name)}</div>
+        <div class="contact-meta">${escHtml(c.email ?? c.phone ?? '')}</div>
+      </div>
+      <span class="status ${cls}">${label}</span>
+    </div>`;
+  }).join('');
+}
+
+document.getElementById('chatAgent').addEventListener('tool-executed', loadContacts);
+
+loadContacts();
+</script>
+</body>
+</html>

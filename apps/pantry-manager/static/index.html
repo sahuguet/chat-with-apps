@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pantry Manager · Agent</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0f0f11; --surface: #1a1a1f; --border: #2a2a32;
+    --accent: #7c6af7; --accent-dim: #3d3570;
+    --text: #e8e8f0; --muted: #6b6b7e;
+    --red: #f76a6a; --green: #6af7a8; --yellow: #f7d06a;
+    --font: 'Inter', system-ui, sans-serif;
+    --mono: 'JetBrains Mono', 'Fira Code', monospace;
+  }
+  body { background: var(--bg); color: var(--text); font-family: var(--font);
+         height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+  header { display: flex; align-items: center; justify-content: space-between;
+           padding: 14px 24px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+  header h1 { font-size: 15px; font-weight: 600; letter-spacing: .04em; color: var(--accent); }
+  header span { font-size: 12px; color: var(--muted); }
+
+  .layout { display: flex; flex: 1; overflow: hidden; }
+
+  .data-panel { flex: 1; display: flex; flex-direction: column; border-right: 1px solid var(--border); overflow: hidden; }
+  .panel-header { padding: 14px 20px; border-bottom: 1px solid var(--border);
+                  display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+  .panel-header h2 { font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+  .panel-body { flex: 1; overflow-y: auto; padding: 16px 20px; display: flex; flex-direction: column; gap: 8px; }
+  .panel-footer { padding: 10px 20px; border-top: 1px solid var(--border); flex-shrink: 0;
+                  font-size: 12px; color: var(--muted); display: flex; gap: 16px; }
+  .panel-footer strong { color: var(--red); }
+
+  .item-row { display: flex; align-items: center; gap: 10px;
+              background: var(--surface); border: 1px solid var(--border);
+              border-radius: 8px; padding: 10px 14px;
+              transition: border-color .15s; }
+  .item-row.low { border-color: #3d1a1a; }
+  .item-name { flex: 1; font-size: 13px; }
+  .item-qty  { font-size: 14px; font-weight: 600; font-family: var(--mono);
+               min-width: 80px; text-align: right; flex-shrink: 0; }
+  .item-qty.ok   { color: var(--green); }
+  .item-qty.warn { color: var(--yellow); }
+  .item-qty.low  { color: var(--red); }
+  .item-cat { font-size: 11px; color: var(--muted); }
+  .low-badge { font-size: 10px; background: #3d1a1a; color: var(--red);
+               padding: 2px 6px; border-radius: 4px; flex-shrink: 0; }
+
+  .empty { display: flex; align-items: center; justify-content: center; flex: 1;
+           color: var(--muted); font-size: 13px; }
+
+  chat-with-app { flex-shrink: 0; border-left: 1px solid var(--border); }
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>&#x1F9BA; Pantry Manager</h1>
+  <span>Track stock, get alerts, know what you can cook</span>
+</header>
+
+<div class="layout">
+  <div class="data-panel">
+    <div class="panel-header">
+      <h2>Pantry</h2>
+      <span id="itemCount" style="font-size:12px;color:var(--muted)"></span>
+    </div>
+    <div id="itemList" class="panel-body"></div>
+    <div class="panel-footer">
+      <span id="lowStockMsg"></span>
+    </div>
+  </div>
+
+  <chat-with-app
+    id="chatAgent"
+    spec-url="/openapi.json"
+    system-prompt="You are a helpful pantry management assistant. Help users track what they have at home, update quantities after shopping or cooking, and identify what's running low. When asked what to cook, list items and suggest meals based on what's available. Use list_low_stock proactively to surface shortages. Be concise and practical."
+  ></chat-with-app>
+</div>
+
+<script type="module" src="/shared/chat-with-app.js"></script>
+<script type="module">
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+async function loadItems() {
+  const items = await fetch('/items').then(r => r.json());
+  const list     = document.getElementById('itemList');
+  const count    = document.getElementById('itemCount');
+  const lowMsg   = document.getElementById('lowStockMsg');
+
+  count.textContent = `${items.length} item${items.length !== 1 ? 's' : ''}`;
+
+  const lowItems = items.filter(i => i.quantity <= i.min_quantity);
+  lowMsg.innerHTML = lowItems.length > 0
+    ? `<strong>${lowItems.length} item${lowItems.length !== 1 ? 's' : ''} running low</strong>`
+    : 'All items well stocked';
+
+  if (items.length === 0) {
+    list.innerHTML = `<div class="empty">Pantry is empty &mdash; ask the agent to add items.</div>`;
+    return;
+  }
+
+  // Sort: low stock first, then alphabetically
+  const sorted = [...items].sort((a, b) => {
+    const aLow = a.quantity <= a.min_quantity;
+    const bLow = b.quantity <= b.min_quantity;
+    if (aLow !== bLow) return aLow ? -1 : 1;
+    return a.name.localeCompare(b.name);
+  });
+
+  list.innerHTML = sorted.map(i => {
+    const isLow  = i.quantity <= i.min_quantity;
+    const ratio  = i.min_quantity > 0 ? i.quantity / i.min_quantity : 1;
+    const cls    = isLow ? 'low' : ratio < 2 ? 'warn' : 'ok';
+    return `
+    <div class="item-row${isLow ? ' low' : ''}">
+      <div style="flex:1">
+        <div class="item-name">${escHtml(i.name)}</div>
+        <div class="item-cat">${escHtml(i.category)}</div>
+      </div>
+      <span class="item-qty ${cls}">${i.quantity} ${escHtml(i.unit)}</span>
+      ${isLow ? '<span class="low-badge">LOW</span>' : ''}
+    </div>`;
+  }).join('');
+}
+
+document.getElementById('chatAgent').addEventListener('tool-executed', loadItems);
+
+loadItems();
+</script>
+</body>
+</html>
